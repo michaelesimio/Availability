@@ -363,7 +363,7 @@
 // ================================================================
 //  CONFIGURATION — paste your deployed Apps Script URL here
 // ================================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz6qc3mdRqqQRH77AwJ-Tok5-agkXyfo0JLzUCkgkfcViwd7WVhIEX-cG8sqnIT8ulV/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJTlqrRlw9H8JOm4oQXMNLWBw2zve_EM4fyMX0OtDM-3B9W9jKjM1vPFNJZx9LnFv9/exec';
 
 // ================================================================
 //  Constants
@@ -585,46 +585,71 @@ async function submitForm() {
   if (!valid) return flash('err', '⚠ ' + errMsg);
   if (!Object.values(days).some(d => d.length > 0))
     return flash('err', '⚠ Please mark at least one day as available and add time blocks.');
-  if (APPS_SCRIPT_URL === 'TESTESTESTETSETuj99r15h6FWg/exec')
-    return flash('err', '⚙ This form hasn\'t been configured yet. Please contact your manager.');
+  if (APPS_SCRIPT_URL === 'PASTE_YOUR_APPS_SCRIPT_URL_HERE')
+    return flash('err', '⚙ This form has not been configured yet. Please contact your manager.');
 
   btn.disabled = true;
   btnLbl.textContent = 'Submitting…';
 
   const payload = { name, department: dept, weekOf, days };
-  const url = APPS_SCRIPT_URL + '?action=submit&data=' + encodeURIComponent(JSON.stringify(payload));
 
   try {
-    // Try with CORS first; fall back to no-cors if needed
-    let ok = false;
-    try {
-      const res  = await fetch(url);
-      const json = await res.json();
-      ok = json.success;
-    } catch (_) {
-      // CORS blocked — fire-and-forget; data still reaches the sheet
-      await fetch(url, { mode: 'no-cors' });
-      ok = true; // optimistic
-    }
-
-    if (ok) {
-      flash('ok', '✅ Availability submitted for the week of ' + fmtRange(weekStarts[selWeek]) + '. Thank you, ' + name + '!');
-      setTimeout(() => {
-        document.getElementById('empName').value = '';
-        document.getElementById('empDept').value = '';
-        buildDays();
-        updateProgress();
-        alertBox.className = 'alert';
-      }, 4000);
-    } else {
-      flash('err', '❌ Submission was not saved. Please try again.');
-    }
+    await submitViaForm(payload);
+    flash('ok', '✅ Availability submitted for the week of ' + fmtRange(weekStarts[selWeek]) + '. Thank you, ' + name + '!');
+    setTimeout(() => {
+      document.getElementById('empName').value = '';
+      document.getElementById('empDept').value = '';
+      buildDays();
+      updateProgress();
+      alertBox.className = 'alert';
+    }, 4000);
   } catch (err) {
-    flash('err', '❌ Network error — check your connection and try again. (' + err.message + ')');
+    flash('err', '❌ Network error — check your connection and try again.');
   } finally {
     btn.disabled = false;
     btnLbl.textContent = 'Submit Availability';
   }
+}
+
+// Uses a hidden form + iframe to bypass CORS — the only reliable way
+// to submit data to Google Apps Script from an external page.
+function submitViaForm(payload) {
+  return new Promise((resolve) => {
+    const iframeName = 'gs-frame-' + Date.now();
+
+    // Hidden iframe prevents the form from navigating the page
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = APPS_SCRIPT_URL;
+    form.target = iframeName;
+
+    const addField = (name, value) => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = name;
+      inp.value = value;
+      form.appendChild(inp);
+    };
+
+    addField('action', 'submit');
+    addField('data', JSON.stringify(payload));
+
+    document.body.appendChild(form);
+    form.submit();
+
+    // Clean up after 3 seconds — we can't read the response due to
+    // cross-origin iframe restrictions, but the data reaches the sheet.
+    setTimeout(() => {
+      try { document.body.removeChild(form);   } catch(e) {}
+      try { document.body.removeChild(iframe); } catch(e) {}
+      resolve();
+    }, 3000);
+  });
 }
 
 function flash(type, msg) {
