@@ -585,7 +585,7 @@ async function submitForm() {
   if (!valid) return flash('err', '⚠ ' + errMsg);
   if (!Object.values(days).some(d => d.length > 0))
     return flash('err', '⚠ Please mark at least one day as available and add time blocks.');
-  if (APPS_SCRIPT_URL === 'TESTESTESTETSETcbyLVju589W3_7O-KNoBWe58IWc2TuRhi-YCY7IzIgK8BazC027wzOqOuj99r15h6FWg/exec')
+  if (APPS_SCRIPT_URL === 'TESTESTESTETSETuj99r15h6FWg/exec')
     return flash('err', '⚙ This form hasn\'t been configured yet. Please contact your manager.');
 
   btn.disabled = true;
