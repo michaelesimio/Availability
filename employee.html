@@ -602,7 +602,7 @@ async function submitForm() {
       buildDays();
       updateProgress();
       alertBox.className = 'alert';
-    }, 4000);
+    }, 10000);
   } catch (err) {
     flash('err', '❌ Network error — check your connection and try again.');
   } finally {
