@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Availability</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ─────────────────────────────────────────────── */
+    :root {
+      --navy      : #1B2A4A;
+      --navy-2    : #243558;
+      --amber     : #F5A623;
+      --amber-lo  : rgba(245,166,35,.08);
+      --white     : #FFFFFF;
+      --bg        : #F2F5FA;
+      --card-bg   : #FFFFFF;
+      --border    : #DDE3EF;
+      --muted     : #8A97B0;
+      --text      : #1E2D48;
+      --text-2    : #5A6A88;
+      --green     : #1E8A5E;
+      --green-bg  : #E6F5EF;
+      --red       : #C0392B;
+      --red-bg    : #FCECEA;
+      --radius    : 12px;
+      --shadow    : 0 2px 14px rgba(27,42,74,.09);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 48px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      background: var(--navy);
+      padding: 18px 20px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .header-icon {
+      width: 44px; height: 44px;
+      background: var(--amber);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px; font-weight: 700; letter-spacing: .4px;
+      color: var(--white);
+    }
+    .header p {
+      font-size: 13px; color: rgba(255,255,255,.55); margin-top: 1px;
+    }
+
+    /* ── Progress strip ─────────────────────────────────────────── */
+    .progress-bar { height: 3px; background: var(--border); }
+    .progress-fill {
+      height: 100%; width: 0;
+      background: var(--amber);
+      transition: width .45s ease;
+    }
+
+    /* ── Container ──────────────────────────────────────────────── */
+    .container { max-width: 620px; margin: 0 auto; padding: 22px 16px; }
+
+    /* ── Cards ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .section-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.2px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Form basics ─────────────────────────────────────────────── */
+    .form-group { margin-bottom: 14px; }
+    .form-group:last-child { margin-bottom: 0; }
+
+    label.field-label {
+      display: block;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .7px;
+      color: var(--text-2); margin-bottom: 6px;
+    }
+    input[type="text"], select {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 15px; color: var(--text);
+      background: var(--white);
+      transition: border-color .2s, box-shadow .2s;
+      appearance: none; -webkit-appearance: none;
+    }
+    input[type="text"]:focus, select:focus {
+      outline: none; border-color: var(--amber);
+      box-shadow: 0 0 0 3px rgba(245,166,35,.14);
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A6A88' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 36px; cursor: pointer;
+    }
+
+    /* ── Week picker ─────────────────────────────────────────────── */
+    .week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .week-opt { position: relative; }
+    .week-opt input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .week-opt label {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 13px 10px;
+      border: 2px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: all .18s;
+      text-transform: none; letter-spacing: 0; font-size: inherit;
+      color: inherit; font-weight: normal;
+    }
+    .week-opt label .wk-tag {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .9px;
+      color: var(--muted); margin-bottom: 5px;
+    }
+    .week-opt label .wk-range {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      text-align: center; line-height: 1.45;
+    }
+    .week-opt input:checked + label { border-color: var(--amber); background: var(--amber-lo); }
+    .week-opt input:checked + label .wk-tag { color: var(--amber); }
+
+    /* ── Day cards ───────────────────────────────────────────────── */
+    .day-card {
+      border: 1.5px solid var(--border); border-radius: 10px;
+      margin-bottom: 10px; overflow: hidden;
+      transition: border-color .2s;
+      background: var(--white);
+    }
+    .day-card.on { border-color: var(--amber); }
+
+    .day-header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px; cursor: pointer;
+      user-select: none;
+    }
+    .day-left { display: flex; align-items: center; gap: 12px; }
+
+    .day-badge {
+      width: 44px; height: 44px; border-radius: 9px;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background .18s;
+    }
+    .day-card.on .day-badge { background: var(--navy); }
+
+    .day-abbr {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      color: var(--muted); line-height: 1;
+    }
+    .day-card.on .day-abbr { color: rgba(255,255,255,.6); }
+    .day-num { font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.1; }
+    .day-card.on .day-num { color: var(--white); }
+
+    .day-info-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .day-info-date { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+    /* Toggle */
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle-lbl {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .6px;
+      color: var(--muted); min-width: 26px; text-align: right;
+    }
+    .day-card.on .toggle-lbl { color: var(--green); }
+
+    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .t-track {
+      position: absolute; inset: 0;
+      background: var(--border); border-radius: 12px;
+      cursor: pointer; transition: background .18s;
+    }
+    .toggle input:checked ~ .t-track { background: var(--amber); }
+    .t-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px;
+      background: var(--white); border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+      transition: transform .18s; pointer-events: none;
+    }
+    .toggle input:checked ~ .t-thumb { transform: translateX(20px); }
+
+    /* Day body */
+    .day-body { padding: 0 14px 14px; display: none; }
+    .day-card.on .day-body { display: block; }
+
+    .blocks-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 9px; }
+
+    .time-block {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--bg); border-radius: 8px;
+      padding: 9px 11px;
+      animation: slideIn .18s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .time-block input[type="time"] {
+      flex: 1; min-width: 0;
+      padding: 7px 9px;
+      border: 1.5px solid var(--border); border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px; font-weight: 500;
+      color: var(--navy); background: var(--white);
+      transition: border-color .2s;
+      -webkit-appearance: none;
+    }
+    .time-block input[type="time"]:focus {
+      outline: none; border-color: var(--amber);
+      box-shadow: 0 0 0 2px rgba(245,166,35,.15);
+    }
+    .time-block input.error { border-color: var(--red); }
+
+    .sep-lbl {
+      font-size: 11px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: .4px; flex-shrink: 0;
+    }
+
+    .btn-rm {
+      width: 28px; height: 28px;
+      border: none; background: none;
+      color: var(--muted); cursor: pointer;
+      border-radius: 6px; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: color .15s, background .15s;
+    }
+    .btn-rm:hover { color: var(--red); background: var(--red-bg); }
+
+    .btn-add-block {
+      width: 100%; padding: 9px;
+      border: 1.5px dashed var(--border); border-radius: 8px;
+      background: none; cursor: pointer;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px; font-weight: 600; color: var(--text-2);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all .18s;
+    }
+    .btn-add-block:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-lo); }
+
+    /* ── Submit ──────────────────────────────────────────────────── */
+    .btn-submit {
+      width: 100%; padding: 15px;
+      background: var(--navy); color: var(--white);
+      border: none; border-radius: var(--radius);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; transition: background .18s, transform .1s;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+    }
+    .btn-submit:hover:not(:disabled) { background: var(--navy-2); }
+    .btn-submit:active { transform: scale(.98); }
+    .btn-submit:disabled { opacity: .55; cursor: not-allowed; }
+
+    .alert {
+      margin-top: 14px; padding: 14px 16px;
+      border-radius: var(--radius); font-size: 14px;
+      font-weight: 500; display: none; line-height: 1.5;
+    }
+    .alert.show  { display: block; }
+    .alert.ok    { background: var(--green-bg); color: var(--green); }
+    .alert.err   { background: var(--red-bg);   color: var(--red);   }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 420px) {
+      .week-grid { grid-template-columns: 1fr; }
+      .time-block { flex-wrap: wrap; }
+      .time-block input[type="time"] { min-width: calc(50% - 20px); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-icon">✈</div>
+  <div>
+    <h1>Weekly Availability</h1>
+    <p>Submit your availability for the upcoming work week</p>
+  </div>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- ── Form ── -->
+<div class="container">
+
+  <!-- Personal info -->
+  <div class="card">
+    <div class="section-label">👤 Your Info</div>
+    <div class="form-group">
+      <label class="field-label" for="empName">Full Name</label>
+      <input type="text" id="empName" placeholder="First Last"
+             autocomplete="name" oninput="onInfoChange()">
+    </div>
+    <div class="form-group">
+      <label class="field-label" for="empDept">Department</label>
+      <select id="empDept" onchange="onInfoChange()">
+        <option value="">Select your department…</option>
+        <option value="Passenger Service">Passenger Service</option>
+        <option value="Ramp">Ramp</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Week selector -->
+  <div class="card">
+    <div class="section-label">📅 Work Week</div>
+    <div class="week-grid" id="weekGrid"></div>
+  </div>
+
+  <!-- Days -->
+  <div class="card">
+    <div class="section-label">🕐 Daily Availability</div>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.5;">
+      Toggle each day you're available and add your time blocks.
+      You can add multiple blocks per day if you have a gap in availability.
+    </p>
+    <div id="daysList"></div>
+  </div>
+
+  <!-- Submit -->
+  <button class="btn-submit" id="submitBtn" onclick="submitForm()">
+    <span id="btnLabel">Submit Availability</span>
+  </button>
+  <div class="alert" id="alertBox"></div>
+
+</div><!-- /container -->
+
+<script>
+// ================================================================
+//  CONFIGURATION — paste your deployed Apps Script URL here
+// ================================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyLVju589W3_7O-KNoBWe58IWc2TuRhi-YCY7IzIgK8BazC027wzOqOuj99r15h6FWg/exec';
+
+// ================================================================
+//  Constants
+// ================================================================
+const DAYS = ['saturday','sunday','monday','tuesday','wednesday','thursday','friday'];
+const DAY_LABEL = { saturday:'Saturday', sunday:'Sunday', monday:'Monday', tuesday:'Tuesday', wednesday:'Wednesday', thursday:'Thursday', friday:'Friday' };
+const DAY_ABBR  = { saturday:'SAT', sunday:'SUN', monday:'MON', tuesday:'TUE', wednesday:'WED', thursday:'THU', friday:'FRI' };
+
+// ================================================================
+//  Week helpers
+// ================================================================
+function getSaturday(offsetWeeks = 0) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  const daysSinceSat = (d.getDay() + 1) % 7; // Sun=1, Mon=2,…Sat=0
+  d.setDate(d.getDate() - daysSinceSat + offsetWeeks * 7);
+  return d;
+}
+
+function toKey(d) { return d.toISOString().slice(0,10); }
+
+function fmtRange(sat) {
+  const fri = new Date(sat); fri.setDate(sat.getDate() + 6);
+  const o = { month:'short', day:'numeric' };
+  return sat.toLocaleDateString('en-US',o) + ' – ' + fri.toLocaleDateString('en-US',{...o,year:'numeric'});
+}
+
+function fmtShort(sat) {
+  const fri = new Date(sat); fri.setDate(sat.getDate() + 6);
+  const o = { month:'short', day:'numeric' };
+  return sat.toLocaleDateString('en-US',o) + ' – ' + fri.toLocaleDateString('en-US',o);
+}
+
+// Default: next week, unless today is Sat or Sun → this week
+let selWeek = (new Date().getDay() === 6 || new Date().getDay() === 0) ? 0 : 1;
+const weekStarts = [getSaturday(0), getSaturday(1)];
+
+// ================================================================
+//  Build week selector
+// ================================================================
+function buildWeekGrid() {
+  const el = document.getElementById('weekGrid');
+  el.innerHTML = '';
+  ['This Week','Next Week'].forEach((lbl, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'week-opt';
+    wrap.innerHTML = `
+      <input type="radio" name="wk" id="wk${i}" value="${i}" ${i===selWeek?'checked':''} onchange="onWeekChange(${i})">
+      <label for="wk${i}">
+        <span class="wk-tag">${lbl}</span>
+        <span class="wk-range">${fmtShort(weekStarts[i])}</span>
+      </label>`;
+    el.appendChild(wrap);
+  });
+}
+
+function onWeekChange(idx) { selWeek = idx; buildDays(); }
+
+// ================================================================
+//  Build day cards
+// ================================================================
+let blkId = 0;
+
+function buildDays() {
+  const el = document.getElementById('daysList');
+  el.innerHTML = '';
+  DAYS.forEach((day, i) => {
+    const date = new Date(weekStarts[selWeek]);
+    date.setDate(date.getDate() + i);
+    const dn   = date.getDate();
+    const mon  = date.toLocaleDateString('en-US',{month:'short'});
+
+    const card = document.createElement('div');
+    card.className = 'day-card';
+    card.id = 'card-' + day;
+    card.innerHTML = `
+      <div class="day-header" onclick="clickHeader('${day}')">
+        <div class="day-left">
+          <div class="day-badge">
+            <span class="day-abbr">${DAY_ABBR[day]}</span>
+            <span class="day-num">${dn}</span>
+          </div>
+          <div>
+            <div class="day-info-name">${DAY_LABEL[day]}</div>
+            <div class="day-info-date">${mon} ${dn}</div>
+          </div>
+        </div>
+        <div class="toggle-wrap">
+          <span class="toggle-lbl" id="tlbl-${day}">OFF</span>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="tog-${day}" onchange="onToggle('${day}')">
+            <span class="t-track"></span>
+            <span class="t-thumb"></span>
+          </label>
+        </div>
+      </div>
+      <div class="day-body" id="body-${day}">
+        <div class="blocks-list" id="blist-${day}"></div>
+        <button class="btn-add-block" onclick="addBlock('${day}')">＋ Add Another Time Block</button>
+      </div>`;
+    el.appendChild(card);
+  });
+}
+
+function clickHeader(day) {
+  const cb = document.getElementById('tog-' + day);
+  cb.checked = !cb.checked;
+  onToggle(day);
+}
+
+function onToggle(day) {
+  const cb   = document.getElementById('tog-' + day);
+  const card = document.getElementById('card-' + day);
+  const lbl  = document.getElementById('tlbl-' + day);
+  if (cb.checked) {
+    card.classList.add('on');
+    lbl.textContent = 'ON';
+    if (!document.getElementById('blist-' + day).children.length) addBlock(day);
+  } else {
+    card.classList.remove('on');
+    lbl.textContent = 'OFF';
+  }
+  updateProgress();
+}
+
+function addBlock(day) {
+  const id  = 'blk-' + day + '-' + (blkId++);
+  const div = document.createElement('div');
+  div.className = 'time-block';
+  div.id = id;
+  div.innerHTML = `
+    <input type="time" id="${id}-s" value="08:00" onchange="validateBlk('${id}')">
+    <span class="sep-lbl">to</span>
+    <input type="time" id="${id}-e" value="16:00" onchange="validateBlk('${id}')">
+    <button class="btn-rm" onclick="rmBlock('${id}','${day}')" title="Remove">×</button>`;
+  document.getElementById('blist-' + day).appendChild(div);
+}
+
+function rmBlock(id, day) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  // keep at least one block if day is toggled on
+  const cb = document.getElementById('tog-' + day);
+  if (cb && cb.checked && !document.getElementById('blist-' + day).children.length) addBlock(day);
+}
+
+function validateBlk(id) {
+  const s = document.getElementById(id + '-s');
+  const e = document.getElementById(id + '-e');
+  if (s && e && s.value && e.value) {
+    e.classList.toggle('error', s.value >= e.value);
+  }
+}
+
+// ================================================================
+//  Progress bar
+// ================================================================
+function onInfoChange() { updateProgress(); }
+
+function updateProgress() {
+  let pts = 0;
+  if (document.getElementById('empName').value.trim()) pts++;
+  if (document.getElementById('empDept').value) pts++;
+  const activeDays = DAYS.filter(d => {
+    const cb = document.getElementById('tog-' + d);
+    return cb && cb.checked;
+  }).length;
+  pts += Math.min(activeDays, 5);
+  document.getElementById('progressFill').style.width = Math.min((pts / 7) * 100, 100) + '%';
+}
+
+// ================================================================
+//  Collect & validate
+// ================================================================
+function collect() {
+  const name = document.getElementById('empName').value.trim();
+  const dept = document.getElementById('empDept').value;
+  const weekOf = toKey(weekStarts[selWeek]);
+  const days = {};
+  let valid = true;
+  let errMsg = '';
+
+  DAYS.forEach(day => {
+    const cb = document.getElementById('tog-' + day);
+    if (!cb || !cb.checked) { days[day] = []; return; }
+
+    const blocks = [];
+    const blistEl = document.getElementById('blist-' + day);
+    for (const blk of blistEl.children) {
+      const sEl = blk.querySelector('input[type="time"]:first-of-type');
+      const eEl = blk.querySelector('input[type="time"]:last-of-type');
+      if (!sEl || !eEl || !sEl.value || !eEl.value) {
+        valid = false; errMsg = 'All time blocks need a start and end time.'; return;
+      }
+      if (sEl.value >= eEl.value) {
+        valid = false; errMsg = 'End time must be after start time for all blocks.'; return;
+      }
+      blocks.push({ start: sEl.value, end: eEl.value });
+    }
+    days[day] = blocks;
+  });
+
+  return { name, dept, weekOf, days, valid, errMsg };
+}
+
+// ================================================================
+//  Submit
+// ================================================================
+async function submitForm() {
+  const alertBox = document.getElementById('alertBox');
+  const btn      = document.getElementById('submitBtn');
+  const btnLbl   = document.getElementById('btnLabel');
+  alertBox.className = 'alert';
+
+  const { name, dept, weekOf, days, valid, errMsg } = collect();
+
+  if (!name) return flash('err', '⚠ Please enter your full name.');
+  if (!dept)  return flash('err', '⚠ Please select your department.');
+  if (!valid) return flash('err', '⚠ ' + errMsg);
+  if (!Object.values(days).some(d => d.length > 0))
+    return flash('err', '⚠ Please mark at least one day as available and add time blocks.');
+  if (APPS_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbyLVju589W3_7O-KNoBWe58IWc2TuRhi-YCY7IzIgK8BazC027wzOqOuj99r15h6FWg/exec')
+    return flash('err', '⚙ This form hasn\'t been configured yet. Please contact your manager.');
+
+  btn.disabled = true;
+  btnLbl.textContent = 'Submitting…';
+
+  const payload = { name, department: dept, weekOf, days };
+  const url = APPS_SCRIPT_URL + '?action=submit&data=' + encodeURIComponent(JSON.stringify(payload));
+
+  try {
+    // Try with CORS first; fall back to no-cors if needed
+    let ok = false;
+    try {
+      const res  = await fetch(url);
+      const json = await res.json();
+      ok = json.success;
+    } catch (_) {
+      // CORS blocked — fire-and-forget; data still reaches the sheet
+      await fetch(url, { mode: 'no-cors' });
+      ok = true; // optimistic
+    }
+
+    if (ok) {
+      flash('ok', '✅ Availability submitted for the week of ' + fmtRange(weekStarts[selWeek]) + '. Thank you, ' + name + '!');
+      setTimeout(() => {
+        document.getElementById('empName').value = '';
+        document.getElementById('empDept').value = '';
+        buildDays();
+        updateProgress();
+        alertBox.className = 'alert';
+      }, 4000);
+    } else {
+      flash('err', '❌ Submission was not saved. Please try again.');
+    }
+  } catch (err) {
+    flash('err', '❌ Network error — check your connection and try again. (' + err.message + ')');
+  } finally {
+    btn.disabled = false;
+    btnLbl.textContent = 'Submit Availability';
+  }
+}
+
+function flash(type, msg) {
+  const el = document.getElementById('alertBox');
+  el.className = 'alert show ' + type;
+  el.textContent = msg;
+}
+
+// ================================================================
+//  Init
+// ================================================================
+buildWeekGrid();
+buildDays();
+</script>
+</body>
+</html>
