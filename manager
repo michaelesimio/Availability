@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manager Dashboard — Ground Ops Scheduling</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ─────────────────────────────────────────────── */
+    :root {
+      --bg        : #0C1824;
+      --surface   : #112032;
+      --surface2  : #162A40;
+      --border    : #1E3850;
+      --border2   : #254463;
+      --amber     : #F5A623;
+      --amber-lo  : rgba(245,166,35,.12);
+      --white     : #FFFFFF;
+      --text      : #D8E6F5;
+      --text2     : #7A9BBF;
+      --text3     : #4A6A88;
+      --green     : #2ECC8E;
+      --green-lo  : rgba(46,204,142,.12);
+      --red       : #E05C5C;
+      --red-lo    : rgba(224,92,92,.12);
+      --ps        : #5BA8F5;
+      --ps-lo     : rgba(91,168,245,.12);
+      --ramp      : #F5A623;
+      --ramp-lo   : rgba(245,166,35,.12);
+      --radius    : 10px;
+      --radius-lg : 14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .hdr-left { display: flex; align-items: center; gap: 12px; }
+    .hdr-icon {
+      width: 40px; height: 40px;
+      background: var(--amber); border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .hdr-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 21px; font-weight: 700; letter-spacing: .4px;
+      color: var(--white);
+    }
+    .hdr-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+    .hdr-right {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .week-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px; padding: 8px 12px;
+      font-size: 13px; color: var(--text2);
+    }
+    .week-pill select {
+      background: transparent; border: none;
+      color: var(--amber); font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer; outline: none;
+      max-width: 180px;
+    }
+    .week-pill select option { background: var(--surface); color: var(--text); }
+
+    .btn-load {
+      padding: 8px 18px;
+      background: var(--amber); color: var(--bg);
+      border: none; border-radius: 8px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700;
+      letter-spacing: .6px; text-transform: uppercase;
+      cursor: pointer; transition: opacity .18s;
+    }
+    .btn-load:hover:not(:disabled) { opacity: .82; }
+    .btn-load:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Tabs ────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0 24px;
+    }
+    .tab {
+      padding: 13px 16px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text3);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .18s;
+      text-transform: uppercase; letter-spacing: .5px;
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+    /* ── Main ────────────────────────────────────────────────────── */
+    .main { padding: 22px 24px; max-width: 1280px; margin: 0 auto; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Summary row ─────────────────────────────────────────────── */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+    }
+    .stat-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .9px;
+      color: var(--text3); margin-bottom: 5px;
+    }
+    .stat-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 34px; font-weight: 700; color: var(--text);
+    }
+    .stat-card.ps  .stat-value { color: var(--ps); }
+    .stat-card.ramp .stat-value { color: var(--ramp); }
+
+    /* ── Filter row ──────────────────────────────────────────────── */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .fbtn {
+      padding: 5px 14px; border-radius: 20px;
+      border: 1px solid var(--border2); background: transparent;
+      color: var(--text2); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .18s;
+    }
+    .fbtn:hover { border-color: var(--amber); color: var(--amber); }
+    .fbtn.active       { background: var(--amber);  border-color: var(--amber);  color: var(--bg); }
+    .fbtn.active.ps    { background: var(--ps);      border-color: var(--ps);     color: var(--bg); }
+    .fbtn.active.ramp  { background: var(--ramp);    border-color: var(--ramp);   color: var(--bg); }
+
+    /* ── Table ───────────────────────────────────────────────────── */
+    .tbl-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .tbl-scroll { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      padding: 11px 14px; text-align: left;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .9px;
+      color: var(--text3);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(30,56,80,.6);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,.018); }
+
+    .emp-name { font-weight: 600; color: var(--text); }
+    .dept-badge {
+      display: inline-block; padding: 2px 9px;
+      border-radius: 5px; font-size: 11px; font-weight: 700;
+    }
+    .dept-badge.ps   { background: var(--ps-lo);   color: var(--ps);   }
+    .dept-badge.ramp { background: var(--ramp-lo); color: var(--ramp); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 5px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: var(--text2);
+    }
+    .unavail { font-size: 11px; color: var(--text3); }
+
+    /* ── State messages ──────────────────────────────────────────── */
+    .state-msg {
+      text-align: center; padding: 52px 24px;
+      color: var(--text3);
+    }
+    .state-msg .icon { font-size: 36px; margin-bottom: 12px; opacity: .45; }
+    .state-msg p { font-size: 14px; line-height: 1.6; }
+    .state-msg strong { color: var(--text2); }
+
+    .spinner-wrap { text-align: center; padding: 48px; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border2); border-top-color: var(--amber);
+      border-radius: 50%; animation: spin .75s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Scheduling mode ─────────────────────────────────────────── */
+    .sched-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 860px) { .sched-layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px;
+    }
+    .panel-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.1px;
+      color: var(--text3); margin-bottom: 18px;
+    }
+
+    .sfield { margin-bottom: 15px; }
+    .slabel {
+      display: block;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .8px;
+      color: var(--text3); margin-bottom: 6px;
+    }
+    .sinput, .sselect {
+      width: 100%; padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px; color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+      transition: border-color .18s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .sinput:focus, .sselect:focus {
+      outline: none; border-color: var(--amber);
+    }
+    .sselect {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237A9BBF' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+      padding-right: 32px; cursor: pointer;
+    }
+    .sselect option { background: var(--surface); }
+
+    .time-pair {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      align-items: center; gap: 8px;
+    }
+    .time-pair .t-sep {
+      font-size: 12px; color: var(--text3); text-align: center;
+    }
+
+    .btn-find {
+      width: 100%; padding: 12px;
+      background: var(--amber); color: var(--bg);
+      border: none; border-radius: var(--radius);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 17px; font-weight: 700;
+      letter-spacing: .8px; text-transform: uppercase;
+      cursor: pointer; transition: opacity .18s;
+      margin-top: 4px;
+    }
+    .btn-find:hover { opacity: .82; }
+
+    /* Results */
+    .results-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .count-bubble {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px; font-weight: 700; flex-shrink: 0;
+      background: var(--green-lo); color: var(--green);
+    }
+    .count-bubble.zero { background: var(--red-lo); color: var(--red); }
+    .results-meta strong { font-size: 15px; color: var(--text); }
+    .results-meta span   { font-size: 12px; color: var(--text3); display: block; margin-top: 1px; }
+
+    .result-list { display: flex; flex-direction: column; gap: 8px; }
+    .result-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      border-radius: var(--radius); padding: 13px 15px;
+      animation: fadeSlide .25s ease;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .rc-name { font-weight: 600; font-size: 15px; color: var(--text); }
+    .rc-dept { font-size: 11px; color: var(--text3); margin-top: 1px; margin-bottom: 6px; }
+    .rc-blocks { display: flex; flex-wrap: wrap; gap: 4px; }
+    .match-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px;
+      background: var(--green-lo); border: 1px solid rgba(46,204,142,.2);
+      border-radius: 5px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: var(--green);
+    }
+
+    .results-placeholder {
+      text-align: center; padding: 52px 20px; color: var(--text3);
+    }
+    .results-placeholder .icon { font-size: 38px; margin-bottom: 12px; opacity: .4; }
+    .results-placeholder p { font-size: 14px; line-height: 1.6; }
+
+    /* ── Error banner ────────────────────────────────────────────── */
+    .err-banner {
+      background: var(--red-lo); border: 1px solid rgba(224,92,92,.25);
+      border-radius: var(--radius); padding: 13px 16px;
+      color: var(--red); font-size: 13px; line-height: 1.6;
+      margin-bottom: 16px; display: none;
+    }
+    .err-banner.show { display: block; }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .main { padding: 16px; }
+      .header { padding: 12px 16px; }
+      .tabs  { padding: 0 16px; }
+      .tab   { padding: 12px 12px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="hdr-left">
+    <div class="hdr-icon">🛫</div>
+    <div>
+      <div class="hdr-title">Manager Dashboard</div>
+      <div class="hdr-sub">Ground Operations · Scheduling</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="week-pill">
+      <span>Week of</span>
+      <select id="weekSel"></select>
+    </div>
+    <button class="btn-load" id="loadBtn" onclick="loadData()">Load</button>
+  </div>
+</div>
+
+<!-- ── Tabs ── -->
+<div class="tabs">
+  <div class="tab active" id="tab-ov"   onclick="switchTab('ov')">📋 Availability Overview</div>
+  <div class="tab"        id="tab-sched" onclick="switchTab('sched')">🗓 Scheduling Mode</div>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- ══ OVERVIEW PANE ══════════════════════════════════════════ -->
+  <div class="tab-pane active" id="pane-ov">
+
+    <!-- Summary stats -->
+    <div class="summary-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Submitted</div>
+        <div class="stat-value" id="st-total">—</div>
+      </div>
+      <div class="stat-card ps">
+        <div class="stat-label">Passenger Service</div>
+        <div class="stat-value" id="st-ps">—</div>
+      </div>
+      <div class="stat-card ramp">
+        <div class="stat-label">Ramp</div>
+        <div class="stat-value" id="st-ramp">—</div>
+      </div>
+    </div>
+
+    <!-- Error banner -->
+    <div class="err-banner" id="errBanner"></div>
+
+    <!-- Filter buttons -->
+    <div class="filter-row">
+      <button class="fbtn active"      onclick="setFilter('all',this)">All</button>
+      <button class="fbtn ps"          onclick="setFilter('Passenger Service',this)">Passenger Service</button>
+      <button class="fbtn ramp"        onclick="setFilter('Ramp',this)">Ramp</button>
+    </div>
+
+    <!-- Table container -->
+    <div id="tblContainer">
+      <div class="state-msg">
+        <div class="icon">📭</div>
+        <p>Select a week above and click <strong>Load</strong> to view submissions.</p>
+      </div>
+    </div>
+
+  </div><!-- /pane-ov -->
+
+  <!-- ══ SCHEDULING PANE ═════════════════════════════════════════ -->
+  <div class="tab-pane" id="pane-sched">
+    <div class="sched-layout">
+
+      <!-- Input panel -->
+      <div class="panel">
+        <div class="panel-title">⚙ Define a Shift</div>
+
+        <div class="sfield">
+          <label class="slabel">Department</label>
+          <select class="sselect" id="s-dept">
+            <option value="">Select department…</option>
+            <option value="Passenger Service">Passenger Service</option>
+            <option value="Ramp">Ramp</option>
+          </select>
+        </div>
+
+        <div class="sfield">
+          <label class="slabel">Day of Week</label>
+          <select class="sselect" id="s-day">
+            <option value="">Select day…</option>
+            <option value="saturday">Saturday</option>
+            <option value="sunday">Sunday</option>
+            <option value="monday">Monday</option>
+            <option value="tuesday">Tuesday</option>
+            <option value="wednesday">Wednesday</option>
+            <option value="thursday">Thursday</option>
+            <option value="friday">Friday</option>
+          </select>
+        </div>
+
+        <div class="sfield">
+          <label class="slabel">Shift Start → End</label>
+          <div class="time-pair">
+            <input type="time" class="sinput" id="s-start" value="08:00">
+            <span class="t-sep">→</span>
+            <input type="time" class="sinput" id="s-end" value="16:00">
+          </div>
+        </div>
+
+        <button class="btn-find" onclick="findAvailable()">Find Available Employees</button>
+
+        <!-- Quick tip -->
+        <p style="font-size:11px;color:var(--text3);margin-top:14px;line-height:1.6;">
+          An employee appears here only if at least one of their availability blocks
+          <em>fully covers</em> the shift window — i.e., they're available from before
+          the shift starts until after it ends.
+        </p>
+      </div>
+
+      <!-- Results panel -->
+      <div class="panel" id="resultsPanel">
+        <div class="panel-title">👥 Available Employees</div>
+        <div class="results-placeholder" id="resPlaceholder">
+          <div class="icon">👈</div>
+          <p>Fill in the shift details on the left, then click<br><strong style="color:var(--amber)">Find Available Employees</strong>.</p>
+        </div>
+        <div id="resContent" style="display:none"></div>
+      </div>
+
+    </div>
+  </div><!-- /pane-sched -->
+
+</div><!-- /main -->
+
+<script>
+// ================================================================
+//  CONFIGURATION — paste your deployed Apps Script URL here
+// ================================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyLVju589W3_7O-KNoBWe58IWc2TuRhi-YCY7IzIgK8BazC027wzOqOuj99r15h6FWg/exec';
+
+// ================================================================
+//  State
+// ================================================================
+let submissions  = [];   // all loaded submissions for selected week
+let activeFilter = 'all';
+
+const DAYS = ['saturday','sunday','monday','tuesday','wednesday','thursday','friday'];
+const DAY_LABEL = {
+  saturday:'Saturday', sunday:'Sunday', monday:'Monday', tuesday:'Tuesday',
+  wednesday:'Wednesday', thursday:'Thursday', friday:'Friday'
+};
+const DAY_SHORT = { saturday:'Sat', sunday:'Sun', monday:'Mon', tuesday:'Tue', wednesday:'Wed', thursday:'Thu', friday:'Fri' };
+
+// ================================================================
+//  Week helpers
+// ================================================================
+function getSaturday(offsetWeeks = 0) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  const daysSinceSat = (d.getDay() + 1) % 7;
+  d.setDate(d.getDate() - daysSinceSat + offsetWeeks * 7);
+  return d;
+}
+function toKey(d) { return d.toISOString().slice(0,10); }
+function fmtRange(sat) {
+  const fri = new Date(sat); fri.setDate(sat.getDate() + 6);
+  const o = { month:'short', day:'numeric' };
+  return sat.toLocaleDateString('en-US',o) + ' – ' + fri.toLocaleDateString('en-US',{...o,year:'numeric'});
+}
+
+// ================================================================
+//  Build week dropdown (prev week through 3 weeks out)
+// ================================================================
+(function buildWeekSel() {
+  const sel = document.getElementById('weekSel');
+  for (let i = -1; i <= 3; i++) {
+    const sat = getSaturday(i);
+    const opt = document.createElement('option');
+    opt.value       = toKey(sat);
+    opt.textContent = fmtRange(sat);
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+})();
+
+// ================================================================
+//  Tab switching
+// ================================================================
+function switchTab(id) {
+  ['ov','sched'].forEach(t => {
+    document.getElementById('tab-'  + t).classList.toggle('active', t === id);
+    document.getElementById('pane-' + t).classList.toggle('active', t === id);
+  });
+}
+
+// ================================================================
+//  Load data from Google Sheet via Apps Script
+// ================================================================
+async function loadData() {
+  const weekOf = document.getElementById('weekSel').value;
+  if (!weekOf) return;
+
+  if (APPS_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbyLVju589W3_7O-KNoBWe58IWc2TuRhi-YCY7IzIgK8BazC027wzOqOuj99r15h6FWg/exec') {
+    showErr('⚙ Apps Script URL not configured. Open manager.html in a text editor and paste your URL into the APPS_SCRIPT_URL variable.');
+    return;
+  }
+
+  const btn = document.getElementById('loadBtn');
+  btn.disabled = true; btn.textContent = 'Loading…';
+  hideErr();
+  setTableLoading();
+
+  try {
+    const url  = APPS_SCRIPT_URL + '?action=fetch&weekOf=' + weekOf;
+    const res  = await fetch(url);
+    const json = await res.json();
+
+    if (json.success) {
+      submissions = json.data || [];
+      renderStats();
+      renderTable();
+    } else {
+      showErr('❌ Server error: ' + (json.error || 'Unknown error.'));
+      setTableMsg('Failed to load. See error above.', '⚠');
+    }
+  } catch (err) {
+    showErr('❌ Could not reach the Apps Script. Make sure your URL is correct and the script is deployed as a Web App with "Anyone" access. Error: ' + err.message);
+    setTableMsg('Connection failed. See error above.', '⚠');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Load';
+  }
+}
+
+// ================================================================
+//  Stats
+// ================================================================
+function renderStats() {
+  const ps   = submissions.filter(s => s.department === 'Passenger Service').length;
+  const ramp = submissions.filter(s => s.department === 'Ramp').length;
+  document.getElementById('st-total').textContent = submissions.length;
+  document.getElementById('st-ps').textContent    = ps;
+  document.getElementById('st-ramp').textContent  = ramp;
+}
+
+// ================================================================
+//  Filter + Table
+// ================================================================
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable() {
+  const data = activeFilter === 'all'
+    ? submissions
+    : submissions.filter(s => s.department === activeFilter);
+
+  if (!data.length) {
+    setTableMsg(
+      submissions.length === 0
+        ? 'No submissions found for this week yet.'
+        : 'No ' + activeFilter + ' submissions for this week.',
+      '📭'
+    );
+    return;
+  }
+
+  const dayHeaders = DAYS.map(d => `<th>${DAY_SHORT[d]}</th>`).join('');
+
+  const rows = data.map(s => {
+    const dc = s.department === 'Passenger Service' ? 'ps' : 'ramp';
+    const da = s.department === 'Passenger Service' ? 'PS'  : 'Ramp';
+
+    const dayCells = DAYS.map(day => {
+      const blocks = (s.days && s.days[day]) || [];
+      if (!blocks.length) return `<td><span class="unavail">—</span></td>`;
+      const chips = blocks.map(b =>
+        `<span class="chip">${fmt12(b.start)}–${fmt12(b.end)}</span>`
+      ).join('');
+      return `<td><div class="chips">${chips}</div></td>`;
+    }).join('');
+
+    const ts = s.timestamp
+      ? new Date(s.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})
+      : '—';
+
+    return `<tr>
+      <td><span class="emp-name">${esc(s.name)}</span></td>
+      <td><span class="dept-badge ${dc}">${da}</span></td>
+      ${dayCells}
+      <td style="color:var(--text3);font-size:11px;white-space:nowrap">${ts}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tblContainer').innerHTML = `
+    <div class="tbl-wrap">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Dept</th>${dayHeaders}<th>Submitted</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function setTableLoading() {
+  document.getElementById('tblContainer').innerHTML = `
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <p style="color:var(--text3);font-size:13px">Loading submissions…</p>
+    </div>`;
+}
+
+function setTableMsg(msg, icon = '📭') {
+  document.getElementById('tblContainer').innerHTML = `
+    <div class="state-msg"><div class="icon">${icon}</div><p>${msg}</p></div>`;
+}
+
+// ================================================================
+//  Scheduling Mode
+// ================================================================
+function findAvailable() {
+  const dept       = document.getElementById('s-dept').value;
+  const day        = document.getElementById('s-day').value;
+  const shiftStart = document.getElementById('s-start').value;
+  const shiftEnd   = document.getElementById('s-end').value;
+
+  if (!dept || !day || !shiftStart || !shiftEnd) {
+    return alert('Please fill in all four shift fields before searching.');
+  }
+  if (shiftStart >= shiftEnd) {
+    return alert('Shift end time must be after shift start time.');
+  }
+  if (!submissions.length) {
+    return showSchedMsg('📭',
+      'No availability data is loaded.<br>Go to the <strong>Availability Overview</strong> tab, pick a week, and click <strong>Load</strong> first.'
+    );
+  }
+
+  // Filter to this department, then check each employee's blocks for that day
+  const deptEmps = submissions.filter(s => s.department === dept);
+  const available = [];
+
+  deptEmps.forEach(emp => {
+    const blocks = (emp.days && emp.days[day]) || [];
+    // An employee CAN work the shift if any block fully contains it
+    const matching = blocks.filter(b => b.start <= shiftStart && b.end >= shiftEnd);
+    if (matching.length) available.push({ name: emp.name, dept: emp.department, matching });
+  });
+
+  renderResults(available, dept, day, shiftStart, shiftEnd, deptEmps.length);
+}
+
+function renderResults(avail, dept, day, start, end, totalChecked) {
+  const ph  = document.getElementById('resPlaceholder');
+  const box = document.getElementById('resContent');
+  ph.style.display  = 'none';
+  box.style.display = 'block';
+
+  const countClass = avail.length === 0 ? 'zero' : '';
+  const shiftLabel = fmt12(start) + ' – ' + fmt12(end);
+  const dayLabel   = DAY_LABEL[day];
+  const weekLabel  = document.getElementById('weekSel').options[document.getElementById('weekSel').selectedIndex]?.text || '';
+
+  let bodyHtml;
+  if (avail.length === 0) {
+    bodyHtml = `
+      <div style="text-align:center;padding:36px 16px;color:var(--text3);">
+        <div style="font-size:34px;margin-bottom:12px">😔</div>
+        <p style="font-size:14px;line-height:1.7">
+          No ${dept} employees are available for this shift.<br>
+          <span style="font-size:12px">(${totalChecked} ${dept} submission${totalChecked !== 1 ? 's' : ''} checked)</span>
+        </p>
+      </div>`;
+  } else {
+    const cards = avail.map((emp, idx) => {
+      const dc = emp.dept === 'Passenger Service' ? 'ps' : 'ramp';
+      const da = emp.dept === 'Passenger Service' ? 'Passenger Service' : 'Ramp';
+      const matchChips = emp.matching.map(b =>
+        `<span class="match-chip">✓ ${fmt12(b.start)} – ${fmt12(b.end)}</span>`
+      ).join('');
+      return `
+        <div class="result-card" style="animation-delay:${idx * 40}ms">
+          <div class="rc-name">${esc(emp.name)}</div>
+          <div class="rc-dept"><span class="dept-badge ${dc}" style="font-size:10px">${da}</span></div>
+          <div class="rc-blocks">${matchChips}</div>
+        </div>`;
+    }).join('');
+
+    bodyHtml = `<div class="result-list">${cards}</div>`;
+  }
+
+  box.innerHTML = `
+    <div class="results-header">
+      <div class="count-bubble ${countClass}">${avail.length}</div>
+      <div class="results-meta">
+        <strong>${avail.length} employee${avail.length !== 1 ? 's' : ''} available</strong>
+        <span>${dept} · ${dayLabel} · ${shiftLabel}</span>
+        <span style="font-size:11px">${weekLabel}</span>
+      </div>
+    </div>
+    ${bodyHtml}`;
+}
+
+function showSchedMsg(icon, html) {
+  const ph  = document.getElementById('resPlaceholder');
+  const box = document.getElementById('resContent');
+  ph.style.display  = 'none';
+  box.style.display = 'block';
+  box.innerHTML     = `
+    <div style="text-align:center;padding:48px 20px;color:var(--text3)">
+      <div style="font-size:36px;margin-bottom:12px;opacity:.45">${icon}</div>
+      <p style="font-size:14px;line-height:1.6">${html}</p>
+    </div>`;
+}
+
+// ================================================================
+//  Utilities
+// ================================================================
+function fmt12(t) {
+  if (!t) return '';
+  const [hh, mm] = t.split(':');
+  let h = parseInt(hh, 10);
+  const ampm = h < 12 ? 'am' : 'pm';
+  if (h === 0) h = 12; else if (h > 12) h -= 12;
+  return `${h}:${mm}${ampm}`;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errBanner');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function hideErr() { document.getElementById('errBanner').classList.remove('show'); }
+</script>
+</body>
+</html>
